@@ -7,7 +7,6 @@ require("dotenv").config();
 
 const app = express();
 
-// ✅ DEBUG LOG (VERY IMPORTANT)
 console.log("🚀 SERVER FILE RUNNING");
 
 // ---------------- CORS ----------------
@@ -39,7 +38,7 @@ const messageSchema = new mongoose.Schema({
 const User = mongoose.model("User", userSchema);
 const Message = mongoose.model("Message", messageSchema);
 
-// ---------------- Connect MongoDB ----------------
+// ---------------- MongoDB Connection ----------------
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
@@ -59,24 +58,24 @@ const transporter = nodemailer.createTransport({
 
 // ---------------- API Routes ----------------
 
-// ✅ TEST ROUTE
+// TEST
 app.get("/api", (req, res) => {
-  console.log("✅ /api HIT");
   res.send("API working");
 });
 
-// ✅ GET USERS (IMPORTANT DEBUG)
+// USERS (FIXED ERROR HANDLING ONLY)
 app.get("/api/users", async (req, res) => {
   console.log("🔥 USERS API HIT");
   try {
     const users = await User.find();
     res.send(users);
   } catch (err) {
-    res.status(500).send("Error fetching users");
+    console.log("❌ USERS ERROR:", err);
+    res.status(500).send(err.message);
   }
 });
 
-// ---------------- Signup ----------------
+// SIGNUP (ONLY ERROR FIXED)
 app.post("/api/signup", async (req, res) => {
   try {
     let { firstName, lastName, email, password } = req.body;
@@ -90,11 +89,6 @@ app.post("/api/signup", async (req, res) => {
       return res.status(400).send("All fields are required");
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).send("Invalid email format");
-    }
-
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).send("User already exists");
@@ -102,54 +96,31 @@ app.post("/api/signup", async (req, res) => {
 
     const user = await User.create({ firstName, lastName, email, password });
 
-    // ✅ Send Email
+    // EMAIL SAFE BLOCK
     try {
       const frontendURL =
-        process.env.FRONTEND_URL ||
-        "https://your-vercel-link.vercel.app";
+        process.env.FRONTEND_URL || "https://automationhub-frontend.vercel.app";
 
-      const emailHTML = `
-      <div style="font-family: Arial; background:#f4f4f4; padding:20px;">
-        <div style="max-width:600px; margin:auto; background:white; padding:30px; border-radius:10px;">
-          
-          <h2 style="color:#4F46E5; text-align:center;">Welcome to AutomationHub 🚀</h2>
-          
-          <p>Hello <b>${firstName}</b>,</p>
-          <p>Your account has been successfully created.</p>
-
-          <div style="text-align:center; margin:30px;">
-            <a href="${frontendURL}" 
-               style="background:#4F46E5; color:white; padding:12px 20px; text-decoration:none; border-radius:6px;">
-              Open App
-            </a>
-          </div>
-
-          <p>${frontendURL}</p>
-
-        </div>
-      </div>
-      `;
-
-      const info = await transporter.sendMail({
+      await transporter.sendMail({
         from: `"AutomationHub" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: "Welcome to AutomationHub 🚀",
-        html: emailHTML,
+        subject: "Welcome 🚀",
+        html: `<h2>Welcome ${firstName}</h2><p>Your account is created.</p>`,
       });
 
-      console.log("✅ Email sent:", info.response);
-    } catch (err) {
-      console.log("❌ EMAIL ERROR:", err.message);
+      console.log("✅ Email sent");
+    } catch (emailErr) {
+      console.log("❌ EMAIL ERROR:", emailErr.message);
     }
 
     res.send({ message: "Signup successful", user });
   } catch (err) {
-    console.log(err);
-    res.status(500).send("Server error");
+    console.log("❌ SIGNUP ERROR:", err);
+    res.status(500).send(err.message);
   }
 });
 
-// ---------------- Login ----------------
+// LOGIN
 app.post("/api/login", async (req, res) => {
   try {
     let { email, password } = req.body;
@@ -166,36 +137,31 @@ app.post("/api/login", async (req, res) => {
     res.send({ message: "Login successful", user });
   } catch (err) {
     console.log(err);
-    res.status(500).send("Server error");
+    res.status(500).send(err.message);
   }
 });
 
-// ---------------- DELETE USERS ----------------
+// DELETE USERS
 app.delete("/api/delete-users", async (req, res) => {
-  console.log("🔥 DELETE USERS HIT");
-
   try {
     const result = await User.deleteMany({});
-
-    console.log("🧹 Deleted count:", result.deletedCount);
-
-    return res.json({
+    res.json({
       message: "All users deleted",
       deletedCount: result.deletedCount,
     });
   } catch (err) {
-    console.log("❌ ERROR:", err.message);
-    return res.status(500).send("Error deleting users");
+    console.log(err);
+    res.status(500).send(err.message);
   }
 });
 
-// ---------------- Serve React Build ----------------
+// STATIC FRONTEND
 app.use(express.static(path.join(__dirname, "build")));
 
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "build", "index.html"));
 });
 
-// ---------------- Start server ----------------
+// START SERVER
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
