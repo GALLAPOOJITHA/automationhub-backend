@@ -14,10 +14,10 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://automationhub-frontend.vercel.app"
+      "https://automationhub-frontend.vercel.app",
     ],
     credentials: true,
-  })
+  }),
 );
 app.use(express.json());
 
@@ -41,20 +41,26 @@ const User = mongoose.model("User", userSchema);
 const Message = mongoose.model("Message", messageSchema);
 
 // ---------------- MongoDB Connection ----------------
+// ---------------- MongoDB Connection (FIXED) ----------------
+console.log("MONGO_URI:", process.env.MONGO_URI);
+
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.log(err));
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("✅ MongoDB Connected Successfully"))
+  .catch((err) => console.log("❌ MongoDB Connection Error:", err));
 
 // ---------------- Nodemailer ----------------
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  family: 4, // 👈 VERY IMPORTANT (forces IPv4)
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
   },
 });
 
@@ -114,7 +120,7 @@ app.post("/api/signup", async (req, res) => {
      style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
      Open App
   </a>
-`
+`,
       });
 
       console.log("✅ Email sent");
