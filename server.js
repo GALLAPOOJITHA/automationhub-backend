@@ -13,7 +13,7 @@ console.log("🚀 SERVER FILE RUNNING");
 // ---------------- CORS ----------------
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "*",
+    origin: process.env.FRONTEND_URL,
     credentials: true,
   })
 );
@@ -56,6 +56,7 @@ const transporter = nodemailer.createTransport({
     rejectUnauthorized: false,
   },
 });
+
 // ---------------- API Routes ----------------
 
 // ✅ TEST ROUTE
@@ -102,47 +103,46 @@ app.post("/api/signup", async (req, res) => {
     const user = await User.create({ firstName, lastName, email, password });
 
     // ✅ Send Email
- try {
-  const frontendURL =
-    process.env.FRONTEND_URL ||
-    "https://disorder-ranging-default.ngrok-free.dev";
+    try {
+      const frontendURL =
+        process.env.FRONTEND_URL ||
+        "https://your-vercel-link.vercel.app";
 
-  const emailHTML = `
-  <div style="font-family: Arial; background:#f4f4f4; padding:20px;">
-    <div style="max-width:600px; margin:auto; background:white; padding:30px; border-radius:10px;">
-      
-      <h2 style="color:#4F46E5; text-align:center;">Welcome to AutomationHub 🚀</h2>
-      
-      <p>Hello <b>${firstName}</b>,</p>
-      <p>Your account has been successfully created.</p>
+      const emailHTML = `
+      <div style="font-family: Arial; background:#f4f4f4; padding:20px;">
+        <div style="max-width:600px; margin:auto; background:white; padding:30px; border-radius:10px;">
+          
+          <h2 style="color:#4F46E5; text-align:center;">Welcome to AutomationHub 🚀</h2>
+          
+          <p>Hello <b>${firstName}</b>,</p>
+          <p>Your account has been successfully created.</p>
 
-      <div style="text-align:center; margin:30px;">
-        <a href="${frontendURL}" 
-           style="background:#4F46E5; color:white; padding:12px 20px; text-decoration:none; border-radius:6px;">
-          Open App
-        </a>
+          <div style="text-align:center; margin:30px;">
+            <a href="${frontendURL}" 
+               style="background:#4F46E5; color:white; padding:12px 20px; text-decoration:none; border-radius:6px;">
+              Open App
+            </a>
+          </div>
+
+          <p>${frontendURL}</p>
+
+        </div>
       </div>
+      `;
 
-      <p>${frontendURL}</p>
+      const info = await transporter.sendMail({
+        from: `"AutomationHub" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "Welcome to AutomationHub 🚀",
+        html: emailHTML,
+      });
 
-    </div>
-  </div>
-  `;
+      console.log("✅ Email sent:", info.response);
+    } catch (err) {
+      console.log("❌ EMAIL ERROR:", err.message);
+    }
 
-  const info = await transporter.sendMail({
-    from: `"AutomationHub" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: "Welcome to AutomationHub 🚀",
-    html: emailHTML,
-  });
-
-  console.log("✅ Email sent:", info.response);
-
-} catch (err) {
-  console.log("❌ EMAIL ERROR:", err.message);
-}
     res.send({ message: "Signup successful", user });
-
   } catch (err) {
     console.log(err);
     res.status(500).send("Server error");
@@ -170,7 +170,7 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// ✅ DELETE USERS
+// ---------------- DELETE USERS ----------------
 app.delete("/api/delete-users", async (req, res) => {
   console.log("🔥 DELETE USERS HIT");
 
@@ -181,14 +181,14 @@ app.delete("/api/delete-users", async (req, res) => {
 
     return res.json({
       message: "All users deleted",
-      deletedCount: result.deletedCount
+      deletedCount: result.deletedCount,
     });
-
   } catch (err) {
     console.log("❌ ERROR:", err.message);
     return res.status(500).send("Error deleting users");
   }
 });
+
 // ---------------- Serve React Build ----------------
 app.use(express.static(path.join(__dirname, "build")));
 
