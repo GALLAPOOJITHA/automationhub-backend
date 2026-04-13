@@ -12,11 +12,13 @@ console.log("🚀 SERVER FILE RUNNING");
 // ---------------- CORS ----------------
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: [
+      "http://localhost:3000",
+      "https://automationhub-frontend.vercel.app"
+    ],
     credentials: true,
   })
 );
-
 app.use(express.json());
 
 // ---------------- MongoDB Models ----------------
@@ -105,7 +107,14 @@ app.post("/api/signup", async (req, res) => {
         from: `"AutomationHub" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: "Welcome 🚀",
-        html: `<h2>Welcome ${firstName}</h2><p>Your account is created.</p>`,
+        html: `
+  <h2>Welcome ${firstName}</h2>
+  <p>Your account is created.</p>
+  <a href="https://automationhub-frontend.vercel.app" 
+     style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
+     Open App
+  </a>
+`
       });
 
       console.log("✅ Email sent");
