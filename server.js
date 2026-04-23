@@ -40,27 +40,28 @@ const messageSchema = new mongoose.Schema({
 const User = mongoose.model("User", userSchema);
 const Message = mongoose.model("Message", messageSchema);
 
-// ---------------- MongoDB Connection ----------------
 // ---------------- MongoDB Connection (FIXED) ----------------
-console.log("MONGO_URI:", process.env.MONGO_URI);
+let isDBConnected = false;
 
 mongoose
   .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 30000,
   })
-  .then(() => console.log("✅ MongoDB Connected Successfully"))
-  .catch((err) => console.log("❌ MongoDB Connection Error:", err));
+  .then(() => {
+    console.log("✅ MongoDB Connected");
+    isDBConnected = true;
+  })
+  .catch((err) => console.log("❌ MongoDB Error:", err));
 
 // ---------------- Nodemailer ----------------
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  family: 4, // 👈 VERY IMPORTANT (forces IPv4)
+  service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
   },
 });
 
@@ -71,7 +72,7 @@ app.get("/api", (req, res) => {
   res.send("API working");
 });
 
-// USERS (FIXED ERROR HANDLING ONLY)
+// USERS
 app.get("/api/users", async (req, res) => {
   console.log("🔥 USERS API HIT");
   try {
@@ -83,8 +84,13 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-// SIGNUP (ONLY ERROR FIXED)
+// SIGNUP (FIXED)
 app.post("/api/signup", async (req, res) => {
+  // ✅ Prevent DB not ready error
+  if (!isDBConnected) {
+    return res.status(503).send("Server waking up, try again");
+  }
+
   try {
     let { firstName, lastName, email, password } = req.body;
 
@@ -104,23 +110,20 @@ app.post("/api/signup", async (req, res) => {
 
     const user = await User.create({ firstName, lastName, email, password });
 
-    // EMAIL SAFE BLOCK
+    // EMAIL
     try {
-      const frontendURL =
-        process.env.FRONTEND_URL || "https://automationhub-frontend.vercel.app";
-
       await transporter.sendMail({
         from: `"AutomationHub" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: "Welcome 🚀",
         html: `
-  <h2>Welcome ${firstName}</h2>
-  <p>Your account is created.</p>
-  <a href="https://automationhub-frontend.vercel.app" 
-     style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
-     Open App
-  </a>
-`,
+          <h2>Welcome ${firstName}</h2>
+          <p>Your account is created.</p>
+          <a href="https://automationhub-frontend.vercel.app"
+             style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
+             Open App
+          </a>
+        `,
       });
 
       console.log("✅ Email sent");
