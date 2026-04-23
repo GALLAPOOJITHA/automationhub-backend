@@ -117,13 +117,34 @@ app.post("/api/signup", async (req, res) => {
         to: email,
         subject: "Welcome 🚀",
         html: `
-          <h2>Welcome ${firstName}</h2>
-          <p>Your account is created.</p>
-          <a href="https://automationhub-frontend.vercel.app"
-             style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
-             Open App
-          </a>
-        `,
+  <div style="font-family: Arial, sans-serif; background:#f4f6f8; padding:20px;">
+    <div style="max-width:500px; margin:auto; background:white; padding:25px; border-radius:10px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+      
+      <h2 style="color:#4F46E5; margin-bottom:10px;">
+        Welcome to AutomationHub 🚀
+      </h2>
+
+      <p style="font-size:16px; color:#333;">
+        Hi <b>${firstName}</b>,
+      </p>
+
+      <p style="color:#555; line-height:1.5;">
+        Your account has been successfully created.<br/>
+        Start exploring experts and automate your workflows easily.
+      </p>
+
+      <a href="https://automationhub-frontend.vercel.app"
+         style="display:inline-block; margin-top:20px; padding:12px 20px; background:#4F46E5; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">
+         Open AutomationHub
+      </a>
+
+      <p style="margin-top:25px; font-size:12px; color:#999;">
+        If you didn’t create this account, you can safely ignore this email.
+      </p>
+
+    </div>
+  </div>
+`,
       });
 
       console.log("✅ Email sent");
