@@ -27,6 +27,9 @@ const userSchema = new mongoose.Schema({
   lastName: String,
   email: String,
   password: String,
+  isVerified: { type: Boolean, default: false },
+  otp: String,
+  otpExpires: Date,
 });
 
 const messageSchema = new mongoose.Schema({
@@ -40,7 +43,7 @@ const messageSchema = new mongoose.Schema({
 const User = mongoose.model("User", userSchema);
 const Message = mongoose.model("Message", messageSchema);
 
-// ---------------- MongoDB Connection (FIXED) ----------------
+// ---------------- MongoDB Connection ----------------
 let isDBConnected = false;
 
 mongoose
@@ -84,9 +87,8 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-// SIGNUP (FIXED)
+// ---------------- SIGNUP (OTP) ----------------
 app.post("/api/signup", async (req, res) => {
-  // ✅ Prevent DB not ready error
   if (!isDBConnected) {
     return res.status(503).send("Server waking up, try again");
   }
@@ -108,58 +110,70 @@ app.post("/api/signup", async (req, res) => {
       return res.status(400).send("User already exists");
     }
 
-    const user = await User.create({ firstName, lastName, email, password });
+    // ✅ Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // EMAIL
+    // ✅ Create user (not verified)
+    const user = await User.create({
+      firstName,
+      lastName,
+      email,
+      password,
+      otp,
+      otpExpires: Date.now() + 5 * 60 * 1000,
+    });
+
+    // ✅ Send OTP email
     try {
       await transporter.sendMail({
         from: `"AutomationHub" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: "Welcome 🚀",
+        subject: "Verify your email",
         html: `
-  <div style="font-family: Arial, sans-serif; background:#f4f6f8; padding:20px;">
-    <div style="max-width:500px; margin:auto; background:white; padding:25px; border-radius:10px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
-      
-      <h2 style="color:#4F46E5; margin-bottom:10px;">
-        Welcome to AutomationHub 🚀
-      </h2>
-
-      <p style="font-size:16px; color:#333;">
-        Hi <b>${firstName}</b>,
-      </p>
-
-      <p style="color:#555; line-height:1.5;">
-        Your account has been successfully created.<br/>
-        Start exploring experts and automate your workflows easily.
-      </p>
-
-      <a href="https://automationhub-frontend.vercel.app"
-         style="display:inline-block; margin-top:20px; padding:12px 20px; background:#4F46E5; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">
-         Open AutomationHub
-      </a>
-
-      <p style="margin-top:25px; font-size:12px; color:#999;">
-        If you didn’t create this account, you can safely ignore this email.
-      </p>
-
-    </div>
-  </div>
-`,
+          <h2>OTP Verification</h2>
+          <p>Your OTP is:</p>
+          <h1>${otp}</h1>
+          <p>This OTP is valid for 5 minutes.</p>
+        `,
       });
 
-      console.log("✅ Email sent");
-    } catch (emailErr) {
-      console.log("❌ EMAIL ERROR:", emailErr.message);
+      console.log("✅ OTP Email sent");
+    } catch (err) {
+      console.log("❌ EMAIL ERROR:", err.message);
     }
 
-    res.send({ message: "Signup successful", user });
+    res.send({ message: "Signup successful. Verify OTP." });
   } catch (err) {
     console.log("❌ SIGNUP ERROR:", err);
     res.status(500).send(err.message);
   }
 });
 
-// LOGIN
+// ---------------- VERIFY OTP ----------------
+app.post("/api/verify-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).send("User not found");
+    if (user.otp !== otp) return res.status(400).send("Invalid OTP");
+    if (user.otpExpires < Date.now())
+      return res.status(400).send("OTP expired");
+
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpires = null;
+
+    await user.save();
+
+    res.send({ message: "Email verified successfully" });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// ---------------- LOGIN ----------------
 app.post("/api/login", async (req, res) => {
   try {
     let { email, password } = req.body;
@@ -170,6 +184,12 @@ app.post("/api/login", async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) return res.status(404).send("User not found");
+
+    // ✅ Must verify first
+    if (!user.isVerified) {
+      return res.status(400).send("Please verify your email first");
+    }
+
     if (user.password !== password)
       return res.status(400).send("Wrong password");
 
